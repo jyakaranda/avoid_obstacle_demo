@@ -1,5 +1,5 @@
-robot_width： 0.0855
-laser2front： 0.0656
+robot_width: 0.1710
+laser2front: 0.0656
 
 debug: true
 min_ob_dist: 0.2
@@ -7,5 +7,5 @@ max_speed: 0.2
 angle_interval: 30.0
 
 obstacle_update_interval: 0.1
-min_angle: 145.0
-max_angle: 215.0
+min_angle: 127.5
+max_angle: 232.5

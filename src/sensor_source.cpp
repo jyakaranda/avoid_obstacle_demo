@@ -130,13 +130,9 @@ int main(int argc, char *argv[]){
 
     SensorSource sensors;
 
-
     ROS_INFO("sensor_source ready");
 
-    ros::Rate rate(10);
-
     ros::spin();
-
 
     return 0;
 }

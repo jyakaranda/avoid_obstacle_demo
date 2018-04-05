@@ -12,6 +12,8 @@ using namespace std;
 #define DEG2RAD(x) ((x)/180.0*PI)
 #define RAD2DIST(x) (0.0855 / (abs(sin(x))) )
 
+double param_robot_width;
+double param_laser2front;
 bool param_debug;
 double param_min_ob_dist;
 double param_max_speed;
@@ -25,6 +27,8 @@ double min_angle, max_angle;
 bool is_ok;
 
 ros::Publisher pub_cmd_vel;
+ros::Duration duration;
+ros::Time current_time, last_time;
 
 
 void cb_obstacle_info(avoid_obstacle_demo::obstacles ob){
@@ -39,17 +43,19 @@ void cb_obstacle_info(avoid_obstacle_demo::obstacles ob){
         return;
     } else {
         locked = true;
+        current_time = ros::Time.now();
+        if((current_time - last_time) < duration){
+            locked = false;
+            return;
+        }
     }
 
     for(int i = 0; i < ob.size; i++){
-        if((ob.angle[i]+PI) >= (PI-theta) && (ob.angle[i]+PI) <= (theta+PI) && ob.dist[i] > param_min_ob_dist){
-            continue;
-        }
-        if(((ob.angle[i]+PI) >= (PI-theta) && (ob.angle[i]+PI) <= (theta+PI) && ob.dist[i] < param_min_ob_dist) || (ob.angle[i]+PI > min_angle && ob.angle[i]+PI < max_angle && RAD2DIST(ob.angle[i]) > ob.dist[i])){
+        if((ob.angle[i] >= (PI-theta)) && ob.angle[i] <= (PI+theta)) && ob.dist[i] < param_min_ob_dist) || RAD2DIST(ob.angle[i]) > ob.dist[i])){
             
             ROS_INFO("detected obstacle %d in dist: %f m, angle: %f rad; RAD2DIST: %f m", obs_v.size(), ob.dist[i], ob.angle[i] + PI, RAD2DIST(ob.angle[i]));
             avoid_obstacle_demo::obstacle tmp;
-            tmp.dist = ob.dist[i];  tmp.angle = ob.angle[i] + PI;
+            tmp.dist = ob.dist[i];  tmp.angle = ob.angle[i];
             obs_v.push_back(tmp);
         }
     }
@@ -61,8 +67,6 @@ void cb_obstacle_info(avoid_obstacle_demo::obstacles ob){
         twist.linear.x = param_max_speed;  twist.linear.y = 0;  twist.linear.z = 0;
         pub_cmd_vel.publish(twist);
         ros::spinOnce();
-        rate.sleep();
-        
     } else{
         ROS_INFO("there are %d detected obstacle points", obs_v.size());
         geometry_msgs::Twist twist;
@@ -71,19 +75,17 @@ void cb_obstacle_info(avoid_obstacle_demo::obstacles ob){
         twist.angular.z = 0;
         pub_cmd_vel.publish(twist);
 
-        rate.sleep();
-
         if(obs_v[obs_v.size()/2].angle > PI){
             twist.angular.z = -DEG2RAD(param_angle_interval);
         } else{
             twist.angular.z = DEG2RAD(param_angle_interval);
         }
 
-
         pub_cmd_vel.publish(twist);
         ros::spinOnce();
-        rate.sleep();
     }
+
+    last_time = current_time;
     locked = false;
 }
 
@@ -96,8 +98,12 @@ int main(int argc,char *argv[]){
     ros::init(argc, argv, "robot_base_node");
     ros::NodeHandle n;
     ros::NodeHandle nh("~");
+    duration.fromSec(1.0);
+    current_time = ros::Time.now();
+    last_time.setNow(new ros::Time(0, 0));
 
-    nh.param<double>("")
+    nh.param<double>("robot_width", param_robot_width, 0.0855);
+    nh.param<double>("laser2front", param_laser2front, 0.0656);
     nh.param<bool>("debug", param_debug, false);
     nh.param<double>("min_ob_dist", param_min_ob_dist, 0.0);
     nh.param<double>("max_speed", param_max_speed, 0.2);
@@ -105,7 +111,7 @@ int main(int argc,char *argv[]){
     nh.param<double>("max_angle", param_max_angle, 225.0);
     nh.param<double>("angle_interval", param_angle_interval, 30.0);
 
-    theta = atan(0.0855/param_max_speed);
+    theta = atan(param_robot_width/2.0/param_min_ob_dist);
     min_angle = DEG2RAD(param_min_angle);
     max_angle = DEG2RAD(param_max_angle);
     
