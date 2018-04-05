@@ -28,7 +28,7 @@ bool is_ok;
 
 ros::Publisher pub_cmd_vel;
 ros::Duration duration;
-ros::Time current_time, last_time;
+static ros::Time current_time, last_time;
 
 
 void cb_obstacle_info(avoid_obstacle_demo::obstacles ob){
@@ -43,7 +43,7 @@ void cb_obstacle_info(avoid_obstacle_demo::obstacles ob){
         return;
     } else {
         locked = true;
-        current_time = ros::Time.now();
+        current_time = ros::Time::now();
         if((current_time - last_time) < duration){
             locked = false;
             return;
@@ -51,7 +51,7 @@ void cb_obstacle_info(avoid_obstacle_demo::obstacles ob){
     }
 
     for(int i = 0; i < ob.size; i++){
-        if((ob.angle[i] >= (PI-theta)) && ob.angle[i] <= (PI+theta)) && ob.dist[i] < param_min_ob_dist) || RAD2DIST(ob.angle[i]) > ob.dist[i])){
+        if(((ob.angle[i] >= (PI-theta)) && (ob.angle[i] <= (PI+theta)) && (ob.dist[i] < param_min_ob_dist)) || (RAD2DIST(ob.angle[i]) > ob.dist[i])){
             
             ROS_INFO("detected obstacle %d in dist: %f m, angle: %f rad; RAD2DIST: %f m", obs_v.size(), ob.dist[i], ob.angle[i] + PI, RAD2DIST(ob.angle[i]));
             avoid_obstacle_demo::obstacle tmp;
@@ -99,8 +99,8 @@ int main(int argc,char *argv[]){
     ros::NodeHandle n;
     ros::NodeHandle nh("~");
     duration.fromSec(1.0);
-    current_time = ros::Time.now();
-    last_time.setNow(new ros::Time(0, 0));
+    current_time = ros::Time::now();
+    last_time.setNow(ros::Time(0, 0));
 
     nh.param<double>("robot_width", param_robot_width, 0.0855);
     nh.param<double>("laser2front", param_laser2front, 0.0656);
