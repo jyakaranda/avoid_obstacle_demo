@@ -7,5 +7,5 @@ max_speed: 0.2
 angle_interval: 30.0
 
 obstacle_update_interval: 0.1
-min_angle: 135.0
-max_angle: 225.0
+min_angle: 145.0
+max_angle: 215.0

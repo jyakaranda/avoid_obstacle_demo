@@ -97,6 +97,7 @@ int main(int argc,char *argv[]){
     ros::NodeHandle n;
     ros::NodeHandle nh("~");
 
+    nh.param<double>("")
     nh.param<bool>("debug", param_debug, false);
     nh.param<double>("min_ob_dist", param_min_ob_dist, 0.0);
     nh.param<double>("max_speed", param_max_speed, 0.2);

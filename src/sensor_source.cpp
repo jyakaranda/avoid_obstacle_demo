@@ -76,29 +76,33 @@ void SensorSource::cb_laser_scan(const sensor_msgs::LaserScan::ConstPtr &laserMs
         ROS_INFO("cb_laser_scan: %d", count);
         int li = 0, ri = laserMsg->ranges.size() - 1;
         if((laserMsg->angle_min > max_angle) || (laserMsg->angle_max < min_angle)){
-            // 扫描角度不在[min_angle, max_angle]区间，默认前进方向无障碍
+            // 扫描角度不在[min_angle, max_angle]区间，默认前进方向有障碍
+            // TODO
             return;
         }
-        li = (laserMsg->angle_min <= min_angle) ? li : (int)((laserMsg->angle_min-min_angle)/laserMsg->angle_increment);
-        ri = (laserMsg->angle_max >= max_angle) ? ri : (laserMsg->ranges.size() - (int)((max_angle-laserMsg->angle_max)/laserMsg->angle_increment));
+        // 找出扫描点在在[min_angle, max_angle]区间的起始结束下标
+        li = (laserMsg->angle_min >= min_angle) ? li : (int)((min_angle-laserMsg->angle_min)/laserMsg->angle_increment);
+        ri = (laserMsg->angle_max <= max_angle) ? ri : (laserMsg->ranges.size()-1 - (int)((laserMsg->angle_max-max_angle)/laserMsg->angle_increment));
+
         avoid_obstacle_demo::obstacles::Ptr obs(new avoid_obstacle_demo::obstacles());
-        obs->size = ri - li;
+        obs->size = ri - li + 1;
         obs->dist.resize(obs->size);
         obs->angle.resize(obs->size);
         obs->angle_increment = laserMsg->angle_increment;
 
         for(int i = li; i <= ri; i++){
             obs->dist[i - li] = laserMsg->ranges[i];
-            obs->angle[i - li] = laserMsg->angle_min + (i * laserMsg->angle_increment);
+            obs->angle[i - li] = laserMsg->angle_min + (i * laserMsg->angle_increment) + PI;  // 加PI是为了统一[-PI， PI]到[0, 2*PI]上
             ROS_INFO("laser obstacle %d - dist: %.2f, angle: %.4f", i, obs->dist[i-li], obs->angle[i-li]);
         }
-        last_scan = laserMsg->header.stamp;
+
         count++;
         obs->header.seq = count;
         obs->header.stamp = last_scan;
         // TODO 得到雷达扫描的障碍物数组
         if(!locked){
             locked = true;
+            last_scan = laserMsg->header.stamp;
             ROS_INFO("locked !!!");
             pub_obstacle.publish(obs);
             locked = false;
