@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="avoid_obstacle_demo" type="avoid_obstacle_demo_base" name="robot_base" output="screen" respawn="false">
+        <rosparam file="$(find avoid_obstacle_demo)/param/robot_param.yaml" command="load" />
+    </node>
+</launch>
