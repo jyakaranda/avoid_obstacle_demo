@@ -5,6 +5,7 @@
 #include "avoid_obstacle_demo/obstacle.h"
 #include <math.h>
 #include <vector>
+#include <sys/time.h>
 
 using namespace std;
 
@@ -18,8 +19,8 @@ bool param_debug;
 double param_min_ob_dist;
 double param_max_speed;
 double param_angle_interval;
-double param_min_angle;
-double param_max_angle;
+// double param_min_angle;
+// double param_max_angle;
 
 double theta;
 double min_angle, max_angle;
@@ -28,32 +29,48 @@ bool is_ok;
 
 ros::Publisher pub_cmd_vel;
 ros::Duration duration;
-static ros::Time current_time, last_time;
+static time_t current_time, last_time;
+struct timeval tv;
 
+bool judge(double angle, double dist){
+    // 给定扫描点的角度和距离判断是否在碰撞范围内，true为在范围内，false为不在
+    if(angle >= (PI-theta) && angle <= (PI+theta)){
+        if(dist < param_min_ob_dist){
+            return true;
+        }
+    } else if(angle>=PI+theta && angle<=max_angle || angle<=PI-theta && angle>=min_angle){
+        if(dist < RAD2DIST(angle)){
+            return true;
+        }
+    }
+    return false;
+}
 
 void cb_obstacle_info(avoid_obstacle_demo::obstacles ob){
     static bool locked = false;
     static ros::Rate rate(1);
     bool flag = false;
     vector<avoid_obstacle_demo::obstacle> obs_v;
-    ROS_INFO("cb_obstacle_info");
+    gettimeofday(&tv, NULL);
+    ROS_INFO("cb_obstacle_info %ld", tv.tv_sec);
 
     if(locked){
         ROS_INFO("cb_obstacle_info locked");
         return;
     } else {
         locked = true;
-        current_time = ros::Time::now();
-        if((current_time - last_time) < duration){
+        current_time = time(&current_time);
+        if((current_time - last_time) < 1){
+            ROS_INFO("%ld %ld %lf", current_time, last_time, duration.toSec());
             locked = false;
             return;
         }
+        ROS_INFO("%lf %lf %lf", current_time, last_time, duration.toSec());
     }
 
     for(int i = 0; i < ob.size; i++){
-        if(((ob.angle[i] >= (PI-theta)) && (ob.angle[i] <= (PI+theta)) && (ob.dist[i] < param_min_ob_dist)) || (RAD2DIST(ob.angle[i]) > ob.dist[i])){
-            
-            ROS_INFO("detected obstacle %d in dist: %f m, angle: %f rad; RAD2DIST: %f m", obs_v.size(), ob.dist[i], ob.angle[i] + PI, RAD2DIST(ob.angle[i]));
+        if(judge(ob.angle[i], ob.dist[i])){
+            ROS_INFO("detected obstacle %d in dist: %f m, angle: %f rad; RAD2DIST: %f m", obs_v.size(), ob.dist[i], ob.angle[i], RAD2DIST(ob.angle[i]));
             avoid_obstacle_demo::obstacle tmp;
             tmp.dist = ob.dist[i];  tmp.angle = ob.angle[i];
             obs_v.push_back(tmp);
@@ -75,11 +92,11 @@ void cb_obstacle_info(avoid_obstacle_demo::obstacles ob){
         twist.angular.z = 0;
         pub_cmd_vel.publish(twist);
 
-        if(obs_v[obs_v.size()/2].angle > PI){
-            twist.angular.z = -DEG2RAD(param_angle_interval);
-        } else{
+        // if(obs_v[obs_v.size()/2].angle > PI){
+        //     twist.angular.z = -DEG2RAD(param_angle_interval);
+        // } else{
             twist.angular.z = DEG2RAD(param_angle_interval);
-        }
+        // }
 
         pub_cmd_vel.publish(twist);
         ros::spinOnce();
@@ -99,21 +116,23 @@ int main(int argc,char *argv[]){
     ros::NodeHandle n;
     ros::NodeHandle nh("~");
     duration.fromSec(1.0);
-    current_time = ros::Time::now();
-    last_time.setNow(ros::Time(0, 0));
+
+        current_time = time(&current_time);
+
+    last_time=time(&last_time);
 
     nh.param<double>("robot_width", param_robot_width, 0.0855);
     nh.param<double>("laser2front", param_laser2front, 0.0656);
     nh.param<bool>("debug", param_debug, false);
     nh.param<double>("min_ob_dist", param_min_ob_dist, 0.0);
     nh.param<double>("max_speed", param_max_speed, 0.2);
-    nh.param<double>("min_angle", param_min_angle, 135.0);
-    nh.param<double>("max_angle", param_max_angle, 225.0);
+    // nh.param<double>("min_angle", param_min_angle, 135.0);
+    // nh.param<double>("max_angle", param_max_angle, 225.0);
     nh.param<double>("angle_interval", param_angle_interval, 30.0);
 
-    theta = atan(param_robot_width/2.0/param_min_ob_dist);
-    min_angle = DEG2RAD(param_min_angle);
-    max_angle = DEG2RAD(param_max_angle);
+    theta = atan(param_robot_width/2.0/(param_min_ob_dist+param_laser2front));
+    min_angle = PI - atan(param_robot_width/2.0/param_laser2front);
+    max_angle = PI + atan(param_robot_width/2.0/param_laser2front);
     
     pub_cmd_vel = n.advertise<geometry_msgs::Twist>("cmd_vel", 50);
     

@@ -4,6 +4,7 @@
 #include <sensor_msgs/LaserScan.h>
 #include <nav_msgs/Odometry.h>
 #include <std_msgs/Header.h>
+#include <rosgraph_msgs/Clock.h>
 #include <string>
 #include <vector>
 
@@ -37,8 +38,12 @@ class SensorSource{
         ros::Publisher pub_obstacle;
 
         ros::Duration obstacle_update_interval;
-        double param_min_angle;
-        double param_max_angle;
+        // double param_min_angle;
+        // double param_max_angle;
+        double param_robot_width;
+        double param_laser2front;
+        bool param_debug;
+        double param_min_ob_dist;
         double min_angle;
         double max_angle;
 };
@@ -48,17 +53,25 @@ SensorSource::SensorSource():nh_("~"){
 }
 
 void SensorSource::init(){
+
     double tmp;
-    nh_.param<double>("obstacle_update_interval", tmp, 0.1);
+    nh_.param<double>("robot_width", param_robot_width, 0.0855);
+    nh_.param<double>("laser2front", param_laser2front, 0.0656);
+    nh_.param<bool>("debug", param_debug, false);
+    nh_.param<double>("min_ob_dist", param_min_ob_dist, 0.0);
+    nh_.param<double>("obstacle_update_interval", tmp, 0.3);
     obstacle_update_interval.fromSec(tmp);
-    nh_.param<double>("min_angle", param_min_angle, -45.0);
-    nh_.param<double>("max_angle", param_max_angle, 45.0);
-    min_angle = DEG2RAD(param_min_angle) - PI;
-    max_angle = DEG2RAD(param_max_angle) - PI;
+    // nh_.param<double>("min_angle", param_min_angle, -45.0);
+    // nh_.param<double>("max_angle", param_max_angle, 45.0);
+    min_angle = PI - atan(param_robot_width/2.0/param_laser2front) - PI;    // 减PI是为了与laserMsg.angle区间一致
+    max_angle = PI + atan(param_robot_width/2.0/param_laser2front) - PI;
 
     sub_laser_scan = n_.subscribe<sensor_msgs::LaserScan>("scan", 100, boost::bind(&SensorSource::cb_laser_scan, this, _1));
+    //n_.subscribe("clock", 100);
     sub_odom = n_.subscribe<nav_msgs::Odometry>("odom", 50, boost::bind(&SensorSource::cb_odom, this, _1));
     pub_obstacle = n_.advertise<avoid_obstacle_demo::obstacles>("obstacle_info", 50);
+    ros::Publisher pub = n_.advertise<rosgraph_msgs::Clock>("clock", 50);
+    pub.publish(rosgraph_msgs::Clock());
 }
 
 void SensorSource::cb_laser_scan(const sensor_msgs::LaserScan::ConstPtr &laserMsg){
